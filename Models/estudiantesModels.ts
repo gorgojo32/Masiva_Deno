@@ -1,0 +1,267 @@
+import { z } from "../Dependencies/dependencias.ts";
+import { Conexion } from "./conexion.ts";
+
+// Tipado correcto para estado utilizando una unión literal
+type EstadoType = 0 | 1;
+
+interface EstudianteData {
+  id_estudiante?: number;
+  nombre: string;
+  apellido: string;
+  email: string;
+  telefono: string;
+  carrera: string;
+  semestre: number;
+  promedio: number;
+  fecha_registro: Date;
+  estado: EstadoType; // Tipado correcto
+}
+
+// Esquema de validación para estudiantes
+const EstudianteSchema = z.object({
+  id_estudiante: z.number().optional(),
+  nombre: z.string().min(1, "El nombre es requerido"),
+  apellido: z.string().min(1, "El apellido es requerido"),
+  email: z.string().email("Email inválido"),
+  telefono: z.string().min(1, "El teléfono es requerido"),
+  carrera: z.string().min(1, "La carrera es requerida"),
+  semestre: z.number().min(1, "El semestre debe ser mayor a 0"),
+  promedio: z.number().min(0, "El promedio debe ser mayor o igual a 0").max(10, "El promedio debe ser menor o igual a 10"),
+  fecha_registro: z.date(),
+  estado: z.union([z.literal(0), z.literal(1)])
+});
+
+export const listarEstudiantes = async () => {
+  try {
+    const { rows: estudiantes } = await Conexion.execute(
+      'SELECT id_estudiante, nombre, apellido, email, telefono, carrera, semestre, promedio, fecha_registro, estado ' +
+      'FROM estudiantes'
+    );
+    return {
+      success: true,
+      data: estudiantes as EstudianteData[],
+    };
+  } catch (error) {
+    console.error("Error en listarEstudiantes:", error);
+    if (error instanceof z.ZodError) {
+      return { success: false, msg: error.message };
+    } else {
+      return { success: false, msg: "Error en el servidor" };
+    }
+  }
+};
+
+export const insertarEstudiante = async (estudiante: EstudianteData) => {
+  try {
+    // Validar el estudiante
+    EstudianteSchema.parse(estudiante);
+
+    const result = await Conexion.execute(
+      `INSERT INTO estudiantes (nombre, apellido, email, telefono, carrera, semestre, promedio, fecha_registro, estado) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        estudiante.nombre,
+        estudiante.apellido,
+        estudiante.email,
+        estudiante.telefono,
+        estudiante.carrera,
+        estudiante.semestre,
+        estudiante.promedio,
+        estudiante.fecha_registro,
+        estudiante.estado,
+      ],
+    );
+    return {
+      success: true,
+      message: "Estudiante insertado con éxito",
+      insertId: result.lastInsertId,
+    };
+  } catch (error) {
+    console.error("Error al insertar estudiante:", error);
+    return { 
+      success: false, 
+      msg: "Error al insertar el estudiante",
+      details: error instanceof Error ? error.message : String(error)
+    };
+  }
+};
+
+export const actualizarEstudiante = async (
+  id_Estudiante: number,
+  estudianteData: Partial<EstudianteData>,
+) => {
+  try {
+    
+    if (Object.keys(estudianteData).length > 0) {
+      
+      const partialSchema = EstudianteSchema.partial();
+      partialSchema.parse(estudianteData);
+    }
+
+    const result = await Conexion.execute(
+      "UPDATE estudiantes SET nombre = ?, apellido = ?, email = ?, telefono = ?, carrera = ?, semestre = ?, promedio = ?, fecha_registro = ?, estado = ? WHERE id_estudiante = ?",
+      [
+        estudianteData.nombre,
+        estudianteData.apellido,
+        estudianteData.email,
+        estudianteData.telefono,
+        estudianteData.carrera,
+        estudianteData.semestre,
+        estudianteData.promedio,
+        estudianteData.fecha_registro,
+        estudianteData.estado,
+        id_Estudiante,
+      ],
+    );
+    
+    
+    if (result && result.affectedRows && result.affectedRows > 0) {
+      return { success: true, msg: "Estudiante actualizado correctamente" };
+    } else {
+      return { success: false, msg: `No se encontró el estudiante con ID ${id_Estudiante}` };
+    }
+  } catch (error) {
+    console.error("Error al actualizar estudiante:", error);
+    return { 
+      success: false, 
+      msg: "Error al actualizar el estudiante",
+      details: error instanceof Error ? error.message : String(error)
+    };
+  }
+};
+
+export const eliminarEstudiante = async (estudianteId: number) => {
+  try {
+    const result = await Conexion.execute(
+      "DELETE FROM estudiantes WHERE id_estudiante = ?",
+      [estudianteId],
+    );
+    
+    
+    console.log("Delete result:", result);
+    
+    
+    if (result && result.affectedRows && result.affectedRows > 0) {
+      return {
+        success: true,
+        msg: "Estudiante eliminado correctamente",
+      };
+    } else {
+      return {
+        success: false,
+        msg: `No se encontró el estudiante con ID ${estudianteId}`,
+      };
+    }
+  } catch (error) {
+    console.error("Error al eliminar estudiante:", error);
+    if (error instanceof z.ZodError) {
+      return { success: false, msg: error.message };
+    } else {
+      return { 
+        success: false, 
+        msg: "Error al eliminar el estudiante",
+        details: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+};
+
+export const insertarEstudiantesMasivo = async (estudiantes: EstudianteData[]) => {
+  if (!estudiantes.length) {
+    return {
+      success: false,
+      msg: "No hay estudiantes para insertar",
+    };
+  }
+
+  const errores: { estudiante: string; error: string }[] = [];
+  let insertados = 0;
+  
+  try {
+    // Iniciar transacción
+    await Conexion.execute("START TRANSACTION");
+    
+    // Validar estudiantes antes de insertar
+    const estudiantesValidos = [];
+    for (const estudiante of estudiantes) {
+      try {
+        // Validar cada estudiante
+        EstudianteSchema.parse(estudiante);
+        estudiantesValidos.push(estudiante);
+      } catch (error) {
+        errores.push({
+          estudiante: `${estudiante.nombre} ${estudiante.apellido}`,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+    
+    // Si no hay estudiantes válidos, cancelar
+    if (estudiantesValidos.length === 0) {
+      throw new Error("No hay estudiantes válidos para insertar");
+    }
+    
+    
+    const BATCH_SIZE = 100; 
+    
+    for (let i = 0; i < estudiantesValidos.length; i += BATCH_SIZE) {
+      const lote = estudiantesValidos.slice(i, i + BATCH_SIZE);
+      
+      
+      const values = lote.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?)").join(", ");
+      
+      // deno-lint-ignore no-explicit-any
+      const params: any[] | undefined = [];
+      
+      
+      lote.forEach(e => {
+        params.push(
+          e.nombre,
+          e.apellido,
+          e.email,
+          e.telefono,
+          e.carrera,
+          e.semestre,
+          e.promedio,
+          e.fecha_registro,
+          e.estado
+        );
+      });
+      
+      
+      const query = `
+        INSERT INTO estudiantes 
+        (nombre, apellido, email, telefono, carrera, semestre, promedio, fecha_registro, estado)
+        VALUES ${values}
+      `;
+      
+      const result = await Conexion.execute(query, params);
+      
+      if (result && result.affectedRows) {
+        insertados += result.affectedRows;
+      }
+    }
+    
+    
+    await Conexion.execute("COMMIT");
+    
+    return {
+      success: true,
+      message: `${insertados} estudiantes insertados con éxito`,
+      errores: errores.length > 0 ? errores : undefined,
+      insertados,
+      totalProcesados: estudiantes.length
+    };
+  } catch (error) {
+    // Revertir cambios en caso de error
+    await Conexion.execute("ROLLBACK");
+    
+    console.error("Error en inserción masiva de estudiantes:", error);
+    return {
+      success: false,
+      msg: "Error en la inserción masiva de estudiantes",
+      details: error instanceof Error ? error.message : String(error),
+      errores
+    };
+  }
+};

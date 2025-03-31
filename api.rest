@@ -1,0 +1,48 @@
+### List all students
+GET http://localhost:8000/estudiantes
+
+### Create a new student
+POST http://localhost:8000/estudiantes
+Content-Type: application/json
+
+{
+  "nombre": "Juan",
+  "apellido": "Pérez",
+  "email": "juan.perez@ejemplo.com",
+  "telefono": "5551234567",
+  "carrera": "Ingeniería en Sistemas",
+  "semestre": 3,
+  "promedio": 8.7,
+  "fecha_registro": "2023-08-15",
+  "estado": 1
+}
+
+### Update a student
+PUT http://localhost:8000/estudiantes/1
+Content-Type: application/json
+
+{
+  "nombre": "Juan Carlos",
+  "apellido": "Pérez López",
+  "email": "juancarlos.perez@ejemplo.com",
+  "telefono": "5551234567",
+  "carrera": "Ingeniería en Sistemas Computacionales",
+  "semestre": 4,
+  "promedio": 9.1,
+  "fecha_registro": "2023-08-15",
+  "estado": 1
+}
+
+### Delete a student
+DELETE http://localhost:8000/estudiantes/12
+
+### Get template Excel file
+GET http://localhost:8000/estudiantes/plantilla-excel
+
+### Import students from Excel file
+POST http://localhost:8000/estudiantes/importar-excel
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+
+Content-Disposition: form-data; name="file"; filename="estudiantes.xlsx"
+Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
