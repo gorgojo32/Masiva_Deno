@@ -353,3 +353,36 @@ Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
 - **Deno permissions:** Ensure all required flags are provided when running
 - **File system:** Check write permissions for uploads directory
 - **Network access:** Verify network permissions for database connections
+
+
+### Prerequisites
+
+Make sure you have the following installed on your system:
+- **Deno runtime**
+- **XAMPP** - Complete Apache/MySQL/PHP stack
+- **Database:** `gestionestudiantes` created in MySQL
+
+### XAMPP Setup
+
+This project uses **XAMPP** as the local development environment for MySQL database management. XAMPP provides an easy-to-use interface and reliable MySQL server.
+
+1. **Download and Install XAMPP:**
+   - Visit [https://www.apachefriends.org/](https://www.apachefriends.org/)
+   - Download XAMPP for your operating system
+   - Install following the default settings
+
+2. **Start XAMPP Services:**
+   - Open XAMPP Control Panel
+   - Start **Apache** service (optional, for phpMyAdmin access)
+   - Start **MySQL** service (required for the application)
+
+3. **Access phpMyAdmin (Optional but Recommended):**
+   - Open your browser and go to `http://localhost/phpmyadmin`
+   - This provides a visual interface to manage your MySQL databases
+
+4. **XAMPP MySQL Configuration:**
+   - Default MySQL port: `3306`
+   - Default username: `root`
+   - Default password: `` (empty)
+
+> **Note:** While this project is specifically configured for XAMPP, it may work with other MySQL installations, but XAMPP is the recommended and tested environment.
