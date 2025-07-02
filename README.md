@@ -279,7 +279,7 @@ The API provides comprehensive error handling with detailed messages:
 
 ## Testing with REST Client
 
-If you have the REST Client extension installed in VS Code, you can test the .restarchive file with the following requests:
+If you have the REST Client extension installed in VS Code, you can test the .rest archive file with the following requests:
 
 ```http
 ### List all students
