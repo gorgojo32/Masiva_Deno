@@ -32,6 +32,14 @@ Before running the project, make sure you install the following extensions in VS
 - **Deno (denoland)** - REQUIRED
   - Provides full support for Deno runtime
   - Enables intellisense, debugging, and formatting
+  - 
+<div align="center">
+  <table>
+    <tr><td style="padding: 10px; background: white;">
+         <img src="https://github.com/user-attachments/assets/689a97f9-ede9-4baa-8b32-47c9a220452c" width="500" style="border: 2px solid white; box-shadow: 0 4px 8px rgba(0,0,0,0.3);">
+    </td></tr>
+  </table>
+</div>
 
 **Recommended Extensions:**
 
@@ -39,6 +47,27 @@ Before running the project, make sure you install the following extensions in VS
 - **JavaScript and TypeScript Nightly (Microsoft)** - Advanced TypeScript support
 - **Error Lens (Alexander)** - Improved error visualization
 - **REST Client (Huachao Mao)** - For testing API endpoints
+
+  <div align="center">
+  <table>
+    <tr>
+      <td style="padding: 10px; background: white;">
+        <img src="https://github.com/user-attachments/assets/e23af0e5-724b-4ec6-9ec2-df0880d881da" width="450">
+      </td>
+      <td style="padding: 10px; background: white;">
+        <img src="https://github.com/user-attachments/assets/2934ca6b-264b-4382-a16b-d44cb11106df" width="450">
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 10px; background: white;">
+        <img src="https://github.com/user-attachments/assets/16f88379-4f4e-4946-9056-3a83ea136d8e" width="450">
+      </td>
+      <td style="padding: 10px; background: white;">
+        <img src="https://github.com/user-attachments/assets/f63e52cd-7eda-4421-82e4-d10ca54cd744" width="450">
+      </td>
+    </tr>
+  </table>
+</div>
 
 ### Prerequisites
 
