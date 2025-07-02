@@ -386,6 +386,6 @@ This project uses **XAMPP** as the local development environment for MySQL datab
 4. **XAMPP MySQL Configuration:**
    - Default MySQL port: `3306`
    - Default username: `root`
-   - Default password: `` (empty)
+  > - Default password: `` (empty)
 
 > **Note:** While this project is specifically configured for XAMPP, it may work with other MySQL installations, but XAMPP is the recommended and tested environment.
