@@ -208,8 +208,7 @@ When importing students via Excel, the system supports flexible column naming. T
 | `carrera` | `career`, `program`, `programa`, `degree` |
 | `semestre` | `semester`, `periodo`, `term` |
 | `promedio` | `average`, `gpa`, `calificacion`, `grade`, `score` |
-| `fecha_registro` | `date`, `fecha`, `registro`, `registration_date` |
-| `estado` | `status`, `active`, `activo`, `is_active` |
+
 
 ## Project Structure
 
