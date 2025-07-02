@@ -78,6 +78,8 @@ Make sure you have the following installed on your system:
 
 ### Database Setup
 
+Here is attached a drive that has the database used in this project https://drive.google.com/drive/folders/1KSE8qj-kJdTJSCIgJ_s3BudZ8gr1cTxW?usp=drive_link
+ 
 1. **Create the database:**
    ```sql
    CREATE DATABASE gestionestudiantes;
@@ -199,6 +201,7 @@ curl -X GET "http://localhost:8000/estudiantes/exportar-excel" \
 
 When importing students via Excel, the system supports flexible column naming. The following column headers are recognized:
 
+
 | Spanish | English Alternatives |
 |---------|---------------------|
 | `nombre` | `name`, `firstname`, `first_name`, `first name` |
@@ -209,6 +212,7 @@ When importing students via Excel, the system supports flexible column naming. T
 | `semestre` | `semester`, `periodo`, `term` |
 | `promedio` | `average`, `gpa`, `calificacion`, `grade`, `score` |
 
+Here is attached a drive that has the exel used in this project    https://drive.google.com/drive/folders/1KSE8qj-kJdTJSCIgJ_s3BudZ8gr1cTxW?usp=drive_link
 
 ## Project Structure
 
