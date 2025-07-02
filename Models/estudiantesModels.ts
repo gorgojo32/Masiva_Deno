@@ -1,23 +1,24 @@
 import { z } from "../Dependencies/dependencias.ts";
 import { Conexion } from "./conexion.ts";
 
-// Tipado correcto para estado utilizando una unión literal
+// Correct typing for state using a literal union
 type EstadoType = 0 | 1;
 
+// Interface defining the structure of student data
 interface EstudianteData {
-  id_estudiante?: number;
-  nombre: string;
-  apellido: string;
-  email: string;
-  telefono: string;
-  carrera: string;
-  semestre: number;
-  promedio: number;
-  fecha_registro: Date;
-  estado: EstadoType; // Tipado correcto
+  id_estudiante?: number;    // Optional student ID (auto-generated)
+  nombre: string;            // First name (required)
+  apellido: string;          // Last name (required)
+  email: string;             // Email address (required)
+  telefono: string;          // Phone number (required)
+  carrera: string;           // Academic program/major (required)
+  semestre: number;          // Current semester (required)
+  promedio: number;          // Grade point average (required)
+  fecha_registro: Date;      // Registration date (required)
+  estado: EstadoType;        // Status: 0 = inactive, 1 = active
 }
 
-// Esquema de validación para estudiantes
+// Validation schema for students using Zod
 const EstudianteSchema = z.object({
   id_estudiante: z.number().optional(),
   nombre: z.string().min(1, "El nombre es requerido"),
@@ -31,8 +32,13 @@ const EstudianteSchema = z.object({
   estado: z.union([z.literal(0), z.literal(1)])
 });
 
+/**
+ * Retrieves all students from the database
+ * @returns Promise with success status and student data array
+ */
 export const listarEstudiantes = async () => {
   try {
+    // Execute SQL query to fetch all student records
     const { rows: estudiantes } = await Conexion.execute(
       'SELECT id_estudiante, nombre, apellido, email, telefono, carrera, semestre, promedio, fecha_registro, estado ' +
       'FROM estudiantes'
@@ -43,6 +49,7 @@ export const listarEstudiantes = async () => {
     };
   } catch (error) {
     console.error("Error en listarEstudiantes:", error);
+    // Handle Zod validation errors specifically
     if (error instanceof z.ZodError) {
       return { success: false, msg: error.message };
     } else {
@@ -51,11 +58,17 @@ export const listarEstudiantes = async () => {
   }
 };
 
+/**
+ * Inserts a new student into the database
+ * @param estudiante - Student data object to be inserted
+ * @returns Promise with success status and insertion details
+ */
 export const insertarEstudiante = async (estudiante: EstudianteData) => {
   try {
-    // Validar el estudiante
+    // Validate student data against schema
     EstudianteSchema.parse(estudiante);
 
+    // Execute INSERT query with parameterized values
     const result = await Conexion.execute(
       `INSERT INTO estudiantes (nombre, apellido, email, telefono, carrera, semestre, promedio, fecha_registro, estado) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -86,18 +99,25 @@ export const insertarEstudiante = async (estudiante: EstudianteData) => {
   }
 };
 
+/**
+ * Updates an existing student record in the database
+ * @param id_Estudiante - ID of the student to update
+ * @param estudianteData - Partial student data with fields to update
+ * @returns Promise with success status and update details
+ */
 export const actualizarEstudiante = async (
   id_Estudiante: number,
   estudianteData: Partial<EstudianteData>,
 ) => {
   try {
-    
+    // Validate partial data if any fields are provided
     if (Object.keys(estudianteData).length > 0) {
-      
+      // Create partial schema for validation of optional fields
       const partialSchema = EstudianteSchema.partial();
       partialSchema.parse(estudianteData);
     }
 
+    // Execute UPDATE query with all fields (some may be undefined)
     const result = await Conexion.execute(
       "UPDATE estudiantes SET nombre = ?, apellido = ?, email = ?, telefono = ?, carrera = ?, semestre = ?, promedio = ?, fecha_registro = ?, estado = ? WHERE id_estudiante = ?",
       [
@@ -114,7 +134,7 @@ export const actualizarEstudiante = async (
       ],
     );
     
-    
+    // Check if any rows were affected (student exists and was updated)
     if (result && result.affectedRows && result.affectedRows > 0) {
       return { success: true, msg: "Estudiante actualizado correctamente" };
     } else {
@@ -130,17 +150,23 @@ export const actualizarEstudiante = async (
   }
 };
 
+/**
+ * Deletes a student record from the database
+ * @param estudianteId - ID of the student to delete
+ * @returns Promise with success status and deletion details
+ */
 export const eliminarEstudiante = async (estudianteId: number) => {
   try {
+    // Execute DELETE query for the specified student ID
     const result = await Conexion.execute(
       "DELETE FROM estudiantes WHERE id_estudiante = ?",
       [estudianteId],
     );
     
-    
+    // Log the result for debugging purposes
     console.log("Delete result:", result);
     
-    
+    // Check if any rows were affected (student existed and was deleted)
     if (result && result.affectedRows && result.affectedRows > 0) {
       return {
         success: true,
@@ -154,6 +180,7 @@ export const eliminarEstudiante = async (estudianteId: number) => {
     }
   } catch (error) {
     console.error("Error al eliminar estudiante:", error);
+    // Handle Zod validation errors specifically
     if (error instanceof z.ZodError) {
       return { success: false, msg: error.message };
     } else {
@@ -166,7 +193,13 @@ export const eliminarEstudiante = async (estudianteId: number) => {
   }
 };
 
+/**
+ * Performs bulk insertion of multiple students using database transactions
+ * @param estudiantes - Array of student data objects to insert
+ * @returns Promise with success status, insertion count, and error details
+ */
 export const insertarEstudiantesMasivo = async (estudiantes: EstudianteData[]) => {
+  // Early return if no students provided
   if (!estudiantes.length) {
     return {
       success: false,
@@ -178,17 +211,18 @@ export const insertarEstudiantesMasivo = async (estudiantes: EstudianteData[]) =
   let insertados = 0;
   
   try {
-    // Iniciar transacción
+    // Start database transaction for data consistency
     await Conexion.execute("START TRANSACTION");
     
-    // Validar estudiantes antes de insertar
+    // Validate all students before attempting insertion
     const estudiantesValidos = [];
     for (const estudiante of estudiantes) {
       try {
-        // Validar cada estudiante
+        // Validate each student against the schema
         EstudianteSchema.parse(estudiante);
         estudiantesValidos.push(estudiante);
       } catch (error) {
+        // Collect validation errors for reporting
         errores.push({
           estudiante: `${estudiante.nombre} ${estudiante.apellido}`,
           error: error instanceof Error ? error.message : String(error)
@@ -196,24 +230,24 @@ export const insertarEstudiantesMasivo = async (estudiantes: EstudianteData[]) =
       }
     }
     
-    // Si no hay estudiantes válidos, cancelar
+    // Cancel operation if no valid students found
     if (estudiantesValidos.length === 0) {
       throw new Error("No hay estudiantes válidos para insertar");
     }
     
-    
+    // Process students in batches to avoid memory issues
     const BATCH_SIZE = 100; 
     
     for (let i = 0; i < estudiantesValidos.length; i += BATCH_SIZE) {
       const lote = estudiantesValidos.slice(i, i + BATCH_SIZE);
       
-      
+      // Create VALUES clause with placeholders for batch insert
       const values = lote.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?)").join(", ");
       
-      // deno-lint-ignore no-explicit-any
+      // Flatten all student data into a single parameter array
       const params: any[] | undefined = [];
       
-      
+      // Add each student's data to the parameters array
       lote.forEach(e => {
         params.push(
           e.nombre,
@@ -228,7 +262,7 @@ export const insertarEstudiantesMasivo = async (estudiantes: EstudianteData[]) =
         );
       });
       
-      
+      // Execute batch INSERT query
       const query = `
         INSERT INTO estudiantes 
         (nombre, apellido, email, telefono, carrera, semestre, promedio, fecha_registro, estado)
@@ -237,12 +271,13 @@ export const insertarEstudiantesMasivo = async (estudiantes: EstudianteData[]) =
       
       const result = await Conexion.execute(query, params);
       
+      // Count successfully inserted records
       if (result && result.affectedRows) {
         insertados += result.affectedRows;
       }
     }
     
-    
+    // Commit transaction if all insertions successful
     await Conexion.execute("COMMIT");
     
     return {
@@ -253,7 +288,7 @@ export const insertarEstudiantesMasivo = async (estudiantes: EstudianteData[]) =
       totalProcesados: estudiantes.length
     };
   } catch (error) {
-    // Revertir cambios en caso de error
+    // Rollback transaction on any error
     await Conexion.execute("ROLLBACK");
     
     console.error("Error en inserción masiva de estudiantes:", error);

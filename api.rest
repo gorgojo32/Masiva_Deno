@@ -1,28 +1,13 @@
 ### List all students
 GET http://localhost:8000/estudiantes
 
-### Create a new student
-POST http://localhost:8000/estudiantes
-Content-Type: application/json
-
-{
-  "nombre": "Juan",
-  "apellido": "Pérez",
-  "email": "juan.perez@ejemplo.com",
-  "telefono": "5551234567",
-  "carrera": "Ingeniería en Sistemas",
-  "semestre": 3,
-  "promedio": 8.7,
-  "fecha_registro": "2023-08-15",
-  "estado": 1
-}
 
 ### Update a student
 PUT http://localhost:8000/estudiantes/1
 Content-Type: application/json
 
 {
-  "nombre": "Juan Carlos",
+  "nombre": "Juan Carlos o",
   "apellido": "Pérez López",
   "email": "juancarlos.perez@ejemplo.com",
   "telefono": "5551234567",

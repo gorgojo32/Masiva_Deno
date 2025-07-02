@@ -5,16 +5,19 @@ import { insertarEstudiantesMasivo, listarEstudiantes } from "../Models/estudian
 import { ensureDir } from "https://deno.land/std@0.220.1/fs/ensure_dir.ts";
 import { basename, join } from "https://deno.land/std@0.220.1/path/mod.ts";
 
-// Implementación mejorada para form-data
+/**
+ * Enhanced controller function to process Excel files containing student data
+ * Handles multipart form-data uploads and processes Excel files for bulk student import
+ * @param ctx - Oak framework context containing request and response objects
+ */
 export const procesarExcelEstudiantes = async (ctx: Context) => {
   const { request, response } = ctx;
-  console.log("=== INICIO PROCESAMIENTO EXCEL ===");
   console.log("Headers de la solicitud:", Object.fromEntries(request.headers.entries()));
 
   let filePath = "";
 
   try {
-    // Verificar si hay un cuerpo en la solicitud
+    // Verify that the request contains a body
     if (!request.hasBody) {
       console.log("ERROR: No hay cuerpo en la solicitud");
       response.status = 400;
@@ -26,15 +29,16 @@ export const procesarExcelEstudiantes = async (ctx: Context) => {
     }
     console.log("La solicitud tiene cuerpo");
 
-    // Crear directorio temporal para guardar el archivo
+    // Create temporary directory to save the uploaded file
     const uploadDir = join(Deno.cwd(), "uploads", "excel");
     await ensureDir(uploadDir);
     console.log(`Directorio para uploads creado: ${uploadDir}`);
 
-    // Mejorar el acceso al form-data
+    // Enhanced approach to access form-data
     try {
+      // Read form-data with size limit (10MB maximum)
       const formData = await request.body({ type: "form-data" }).value;
-      const data = await formData.read({ maxSize: 10 * 1024 * 1024 }); // 10MB máximo
+      const data = await formData.read({ maxSize: 10 * 1024 * 1024 }); // 10MB maximum
       
       console.log("Form-data obtenido:", {
         tieneFiles: !!data.files,
@@ -42,7 +46,7 @@ export const procesarExcelEstudiantes = async (ctx: Context) => {
         fields: Object.keys(data.fields || {})
       });
 
-      // Verificar si hay un archivo
+      // Verify that a file is present in the form-data
       const file = data.files?.[0];
       if (!file) {
         console.log("ERROR: No se encontró archivo en form-data");
@@ -56,11 +60,11 @@ export const procesarExcelEstudiantes = async (ctx: Context) => {
 
       console.log("Archivo recibido - Propiedades:", Object.keys(file));
       
-      // Obtener el nombre del archivo - manejo seguro
+      // Get the original filename with safe fallback options
       const originalFilename = file.originalName || file.name || file.filename || "archivo.xlsx";
       console.log("Nombre original del archivo:", originalFilename);
 
-      // Verificar que sea un archivo Excel
+      // Validate that the uploaded file is an Excel file
       if (!originalFilename.toLowerCase().endsWith('.xlsx') && !originalFilename.toLowerCase().endsWith('.xls')) {
         console.log(`ERROR: El archivo no tiene extensión Excel: ${originalFilename}`);
         response.status = 400;
@@ -71,31 +75,31 @@ export const procesarExcelEstudiantes = async (ctx: Context) => {
         return;
       }
 
-      // Crear nombre único para el archivo
+      // Create unique filename with timestamp to avoid conflicts
       const timestamp = Date.now();
       const safeFileName = basename(originalFilename).replace(/[^a-zA-Z0-9._-]/g, '_');
       const uniqueFileName = `${timestamp}_${safeFileName}`;
       filePath = join(uploadDir, uniqueFileName);
       console.log(`Ruta para guardar el archivo: ${filePath}`);
 
-      // Acceder directamente al contenido del archivo - Método mejorado
+      // Enhanced method to access file content - multiple fallback strategies
       let fileContent = null;
       
-      // Si file tiene tipo Blob, extrae su contenido
+      // Strategy 1: Direct access to file.content
       if (file && typeof file.content !== 'undefined') {
         console.log("Usando file.content directamente");
         fileContent = file.content;
         console.log(`Contenido encontrado: ${fileContent.length} bytes`);
     }
       
-      // Si file.content existe y es un Uint8Array
+      // Strategy 2: Check if file.content is a Uint8Array
       if (!fileContent && file.content && file.content instanceof Uint8Array) {
         console.log("Contenido encontrado en file.content");
         fileContent = file.content;
         console.log(`Contenido encontrado en file.content: ${fileContent.length} bytes`);
       }
       
-      // Si file.content existe pero no es un Uint8Array (podría ser string o ArrayBuffer)
+      // Strategy 3: Handle different content types (string or ArrayBuffer)
       if (!fileContent && file.content) {
         try {
           if (typeof file.content === 'string') {
@@ -111,7 +115,7 @@ export const procesarExcelEstudiantes = async (ctx: Context) => {
         }
       }
       
-      // Intenta leer archivo directamente del disco temporal si existe una ruta
+      // Strategy 4: Try reading from temporary disk file path
       if (!fileContent && file && typeof file.filename === 'string') {
         try {
             console.log(`Intentando leer desde archivo: ${file.filename}`);
@@ -122,14 +126,14 @@ export const procesarExcelEstudiantes = async (ctx: Context) => {
         }
     }
       
-      // Nuevo intento usando la propiedad 'bytes'
+      // Strategy 5: Try reading bytes property directly
       if (!fileContent && (file as any).bytes) {
         console.log("Intentando leer bytes directamente");
         fileContent = (file as any).bytes;
         console.log(`Bytes extraídos: ${fileContent.length}`);
       }
       
-      // Si aún no tenemos contenido, pero tenemos una ruta
+      // Strategy 6: Try reading from possible file path
       if (!fileContent && file.filename) {
         try {
           const possiblePath = file.filename;
@@ -141,7 +145,7 @@ export const procesarExcelEstudiantes = async (ctx: Context) => {
         }
       }
 
-      // Si no pudimos obtener el contenido, enviar error
+      // Return error if file content couldn't be extracted
       if (!fileContent || fileContent.length === 0) {
         console.log("ERROR: No se pudo obtener el contenido del archivo");
         response.status = 400;
@@ -154,15 +158,15 @@ export const procesarExcelEstudiantes = async (ctx: Context) => {
         return;
       }
 
-      // Guardar el archivo en disco
+      // Save the file to disk for processing
       console.log(`Guardando archivo con ${fileContent.length} bytes`);
       await Deno.writeFile(filePath, fileContent);
       
-      // Verificar que el archivo se guardó correctamente
+      // Verify that the file was saved correctly
       const fileStats = await Deno.stat(filePath);
       console.log(`Archivo guardado en disco. Tamaño: ${fileStats.size} bytes`);
 
-      // Continuar con el procesamiento del archivo
+      // Continue with Excel file processing
       await procesarArchivoExcel(filePath, response);
       
     } catch (formError) {
@@ -183,29 +187,32 @@ export const procesarExcelEstudiantes = async (ctx: Context) => {
       details: generalError instanceof Error ? generalError.message : String(generalError),
     };
   } finally {
-    // Asegurarse de que el archivo temporal se elimine
+    // Ensure temporary file is deleted in all cases
     if (filePath) {
       try {
         await Deno.remove(filePath);
         console.log(`Archivo temporal eliminado en finally: ${filePath}`);
       } catch {
-        // Ignorar errores si el archivo ya no existe
+        // Ignore errors if file doesn't exist
       }
     }
     console.log("=== FIN PROCESAMIENTO EXCEL ===");
   }
 };
 
-// El resto del código permanece igual
+/**
+ * Alternative controller function to process Excel files sent as Base64 encoded data
+ * Handles JSON requests containing filename and Base64 encoded file content
+ * @param ctx - Oak framework context containing request and response objects
+ */
 export const procesarExcelBase64 = async (ctx: Context) => {
-  // Implementación existente...
   const { request, response } = ctx;
   console.log("=== INICIO PROCESAMIENTO EXCEL BASE64 ===");
   
   let filePath = "";
   
   try {
-    // Verificar si hay un cuerpo en la solicitud
+    // Verify that the request contains a body
     if (!request.hasBody) {
       console.log("ERROR: No hay cuerpo en la solicitud");
       response.status = 400;
@@ -216,11 +223,11 @@ export const procesarExcelBase64 = async (ctx: Context) => {
       return;
     }
     
-    // Obtener el body JSON
+    // Parse JSON body from the request
     const body = await request.body({ type: "json" }).value;
     console.log("Body JSON recibido con propiedades:", Object.keys(body));
     
-    // Verificar si contiene los campos necesarios
+    // Verify that required fields are present
     if (!body.filename || !body.content) {
       console.log("ERROR: JSON incompleto, falta filename o content");
       response.status = 400;
@@ -231,11 +238,11 @@ export const procesarExcelBase64 = async (ctx: Context) => {
       return;
     }
     
-    // Extraer filename y content base64
+    // Extract filename and Base64 content
     const { filename, content } = body;
     console.log(`Archivo recibido: ${filename}, tamaño base64: ${content.length} caracteres`);
     
-    // Verificar que sea un archivo Excel
+    // Validate that the file is an Excel file
     if (!filename.toLowerCase().endsWith('.xlsx') && !filename.toLowerCase().endsWith('.xls')) {
       console.log(`ERROR: El archivo no tiene extensión Excel: ${filename}`);
       response.status = 400;
@@ -246,15 +253,15 @@ export const procesarExcelBase64 = async (ctx: Context) => {
       return;
     }
     
-    // Decodificar el base64
+    // Decode Base64 content to binary data
     try {
-      // Eliminar prefijo "data:application/..." si existe
+      // Remove data URL prefix if present (e.g., "data:application/...")
       let base64Data = content;
       if (base64Data.includes(",")) {
         base64Data = base64Data.split(",")[1];
       }
       
-      // Decodificar Base64 a binario
+      // Decode Base64 to binary string, then to Uint8Array
       const binaryString = atob(base64Data);
       const bytes = new Uint8Array(binaryString.length);
       
@@ -264,25 +271,25 @@ export const procesarExcelBase64 = async (ctx: Context) => {
       
       console.log(`Base64 decodificado: ${bytes.length} bytes`);
       
-      // Crear directorio temporal para guardar el archivo
+      // Create temporary directory for file storage
       const uploadDir = join(Deno.cwd(), "uploads", "excel");
       await ensureDir(uploadDir);
       
-      // Crear nombre único para el archivo
+      // Create unique filename with timestamp
       const timestamp = Date.now();
       const safeFileName = basename(filename).replace(/[^a-zA-Z0-9._-]/g, '_');
       const uniqueFileName = `${timestamp}_${safeFileName}`;
       filePath = join(uploadDir, uniqueFileName);
       
-      // Guardar el archivo en disco
+      // Save decoded file to disk
       await Deno.writeFile(filePath, bytes);
       console.log(`Archivo guardado en: ${filePath}`);
       
-      // Verificar que el archivo se guardó correctamente
+      // Verify that the file was saved correctly
       const fileStats = await Deno.stat(filePath);
       console.log(`Archivo guardado en disco. Tamaño: ${fileStats.size} bytes`);
       
-      // Continuar con el procesamiento del archivo
+      // Continue with Excel file processing
       await procesarArchivoExcel(filePath, response);
       
     } catch (base64Error) {
@@ -303,37 +310,42 @@ export const procesarExcelBase64 = async (ctx: Context) => {
       details: generalError instanceof Error ? generalError.message : String(generalError),
     };
   } finally {
-    // Asegurarse de que el archivo temporal se elimine
+    // Ensure temporary file is deleted in all cases
     if (filePath) {
       try {
         await Deno.remove(filePath);
         console.log(`Archivo temporal eliminado en finally: ${filePath}`);
       } catch {
-        // Ignorar errores si el archivo ya no existe
+        // Ignore errors if file doesn't exist
       }
     }
     console.log("=== FIN PROCESAMIENTO EXCEL BASE64 ===");
   }
 };
 
-// Función para procesar el archivo Excel una vez guardado
+/**
+ * Internal function to process an Excel file once it's saved to disk
+ * Reads the Excel file, extracts student data, and performs bulk insertion
+ * @param filePath - Path to the saved Excel file on disk
+ * @param response - Response object to send results back to client
+ */
 async function procesarArchivoExcel(filePath: string, response: any) {
   try {
-    // Leer el archivo para procesarlo
+    // Read the Excel file from disk
     const xlsxData = await Deno.readFile(filePath);
     console.log(`Archivo Excel leído: ${xlsxData.length} bytes`);
     
-    // Si el archivo está vacío o es muy pequeño para ser un Excel, error
+    // Validate that file is not empty or too small to be a valid Excel file
     if (xlsxData.length < 100) {
       throw new Error("El archivo es demasiado pequeño para ser un Excel válido");
     }
     
-    // Intentar procesarlo con SheetJS
+    // Process the Excel file using SheetJS with fallback strategies
     console.log("Procesando con XLSX.read...");
     let workbook;
     
     try {
-      // Intento #1: Configuración normal
+      // Attempt 1: Standard configuration with full features
       workbook = XLSX.read(xlsxData, {
         type: "array",
         cellDates: true,
@@ -345,7 +357,7 @@ async function procesarArchivoExcel(filePath: string, response: any) {
     } catch (e) {
       console.error("Error en primer intento de lectura XLSX:", e);
       
-      // Intento #2: Configuración alternativa
+      // Attempt 2: Alternative configuration for problematic files
       console.log("Intentando configuración alternativa...");
       workbook = XLSX.read(xlsxData, {
         type: "buffer",
@@ -359,20 +371,21 @@ async function procesarArchivoExcel(filePath: string, response: any) {
       hojas: workbook.SheetNames
     });
     
+    // Validate that the workbook contains sheets
     if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
       throw new Error("El archivo Excel no contiene hojas");
     }
     
-    // Obtener la primera hoja
+    // Get the first sheet for processing
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
     console.log(`Usando hoja: ${sheetName}`);
     
-    // Extraer datos como JSON
+    // Extract data as JSON from the worksheet
     const jsonData = XLSX.utils.sheet_to_json(worksheet, {
-      defval: "",
-      blankrows: false,
-      raw: false
+      defval: "",          // Default value for empty cells
+      blankrows: false,    // Skip blank rows
+      raw: false          // Convert values to strings
     });
     
     console.log(`Datos extraídos: ${jsonData.length} filas`);
@@ -380,19 +393,20 @@ async function procesarArchivoExcel(filePath: string, response: any) {
       console.log("Ejemplo de la primera fila:", jsonData[0]);
     }
     
+    // Validate that data was successfully extracted
     if (!jsonData || jsonData.length === 0) {
       throw new Error("No se pudieron extraer datos del archivo Excel");
     }
     
-    // Procesar los datos para insertarlos
+    // Process the extracted data to prepare for database insertion
     const estudiantes = prepararDatosEstudiantes(jsonData);
     console.log(`Estudiantes procesados: ${estudiantes.length}`);
     
-    // Insertarlos en la base de datos
+    // Insert processed students into the database
     const resultado = await insertarEstudiantesMasivo(estudiantes);
     console.log("Resultado de la inserción:", resultado);
     
-    // Responder al cliente
+    // Send response to client based on insertion result
     if (resultado.success) {
       response.status = 200;
       response.body = resultado;
@@ -411,10 +425,15 @@ async function procesarArchivoExcel(filePath: string, response: any) {
   }
 }
 
-// Función de utilidad para preparar los datos de estudiantes
+/**
+ * Utility function to prepare student data from Excel JSON
+ * Maps Excel column headers to database fields with intelligent field detection
+ * @param jsonData - Array of objects representing Excel rows
+ * @returns Array of processed student objects ready for database insertion
+ */
 function prepararDatosEstudiantes(jsonData: any[]) {
   return jsonData.map((row: any, index: number) => {
-    // Estas son las posibles claves que podríamos encontrar en el Excel
+    // Define possible column headers that could be found in Excel files
     const posiblesClaves = {
       nombre: ['nombre', 'name', 'firstname', 'first_name', 'first name'],
       apellido: ['apellido', 'lastname', 'surname', 'last_name', 'last name'],
@@ -427,15 +446,20 @@ function prepararDatosEstudiantes(jsonData: any[]) {
       estado: ['estado', 'status', 'active', 'activo', 'is_active']
     };
 
-    // Función para encontrar una clave en el objeto row
+    /**
+     * Helper function to find a matching key in the row object
+     * Performs case-insensitive matching against possible column names
+     * @param posibles - Array of possible column names to search for
+     * @returns The actual key found in the row object, or null if not found
+     */
     const encontrarClave = (posibles: string[]): string | null => {
-      // Convertir todas las claves a minúsculas para comparación
+      // Convert all row keys to lowercase for comparison
       const keysLower: Record<string, string> = {};
       Object.keys(row).forEach(key => {
         keysLower[key.toLowerCase()] = key;
       });
 
-      // Buscar coincidencia
+      // Search for a match among possible column names
       for (const posible of posibles) {
         if (keysLower[posible.toLowerCase()]) {
           return keysLower[posible.toLowerCase()];
@@ -444,49 +468,55 @@ function prepararDatosEstudiantes(jsonData: any[]) {
       return null;
     };
 
-    // Función para extraer un valor según las posibles claves
+    /**
+     * Helper function to extract a value using possible column names
+     * @param claves - Array of possible column names for this field
+     * @returns The value found, or null if no matching column is found
+     */
     const extraerValor = (claves: string[]): any => {
       const clave = encontrarClave(claves);
       return clave ? row[clave] : null;
     };
 
-    // Extraer valores
+    // Extract and clean string values with fallbacks
     const nombre = String(extraerValor(posiblesClaves.nombre) || "").trim();
     const apellido = String(extraerValor(posiblesClaves.apellido) || "").trim();
     const email = String(extraerValor(posiblesClaves.email) || "").trim();
     const telefono = String(extraerValor(posiblesClaves.telefono) || "").trim();
     const carrera = String(extraerValor(posiblesClaves.carrera) || "").trim();
     
-    // Conversión segura de números
+    // Safe numeric conversions with defaults
     const semestreRaw = extraerValor(posiblesClaves.semestre);
     const semestre = !isNaN(Number(semestreRaw)) ? Number(semestreRaw) : 1;
     
     const promedioRaw = extraerValor(posiblesClaves.promedio);
     const promedio = !isNaN(Number(promedioRaw)) ? Number(promedioRaw) : 0;
     
-    // Procesar fecha
+    // Process registration date with multiple format handling
     const fechaRaw = extraerValor(posiblesClaves.fecha_registro);
     let fecha_registro = new Date();
     
     if (fechaRaw) {
       if (fechaRaw instanceof Date) {
+        // Already a Date object
         fecha_registro = fechaRaw;
       } else if (typeof fechaRaw === 'string') {
+        // Try to parse string date
         const timestamp = Date.parse(fechaRaw);
         if (!isNaN(timestamp)) {
           fecha_registro = new Date(timestamp);
         }
       } else if (typeof fechaRaw === 'number') {
-        // Excel almacena fechas como números de serie
+        // Excel stores dates as serial numbers (days since 1899-12-30)
         const excelEpoch = new Date(1899, 11, 30);
         const msPerDay = 24 * 60 * 60 * 1000;
         fecha_registro = new Date(excelEpoch.getTime() + fechaRaw * msPerDay);
       }
     }
     
-    // Procesar estado
+    // Process status field with multiple format handling
     const estadoRaw = extraerValor(posiblesClaves.estado);
-    let estado: 0 | 1 = 1; // Por defecto activo
+    let estado: 0 | 1 = 1; // Default to active
     
     if (estadoRaw !== null && estadoRaw !== undefined) {
       if (typeof estadoRaw === 'boolean') {
@@ -501,15 +531,15 @@ function prepararDatosEstudiantes(jsonData: any[]) {
       }
     }
 
-    // Si no encontramos campos clave, intentar adivinar por posición
+    // Fallback strategy: use positional values if key fields are missing
     if (!nombre && !apellido && !email) {
       console.log(`Fila ${index + 1}: No se encontraron campos clave, utilizando valores por posición`);
       
-      // Obtener todas las claves y valores
+      // Get all keys and values from the row
       const claves = Object.keys(row);
       const valores = Object.values(row);
       
-      // Usar primera columna como nombre si existe
+      // Use first columns as default fields if they exist
       if (claves.length > 0 && valores[0]) {
         return {
           nombre: String(valores[0] || "").trim() || `Estudiante${index + 1}`,
@@ -525,7 +555,7 @@ function prepararDatosEstudiantes(jsonData: any[]) {
       }
     }
 
-    // Valores por defecto para campos obligatorios faltantes
+    // Return processed student object with defaults for missing required fields
     return {
       nombre: nombre || `Estudiante${index + 1}`,
       apellido: apellido || `Apellido${index + 1}`,
@@ -540,13 +570,17 @@ function prepararDatosEstudiantes(jsonData: any[]) {
   });
 }
 
-// Exportar estudiantes a Excel
+/**
+ * Controller function to export all students to an Excel file
+ * Generates a downloadable Excel file containing all student records
+ * @param ctx - Oak framework context containing response object
+ */
 export const exportarEstudiantesExcel = async (ctx: Context) => {
   const { response } = ctx;
   console.log("=== INICIO EXPORTACIÓN EXCEL ===");
 
   try {
-    // Obtener todos los estudiantes desde la base de datos
+    // Retrieve all students from the database
     console.log("Obteniendo lista de estudiantes...");
     const resultado = await listarEstudiantes();
     console.log(`Resultado de listarEstudiantes:`, {
@@ -554,6 +588,7 @@ export const exportarEstudiantesExcel = async (ctx: Context) => {
       cantidadDatos: resultado.data ? resultado.data.length : 0
     });
     
+    // Check if students data is available for export
     if (!resultado.success || !resultado.data || resultado.data.length === 0) {
       console.log("No hay estudiantes para exportar");
       response.status = 404;
@@ -564,11 +599,11 @@ export const exportarEstudiantesExcel = async (ctx: Context) => {
       return;
     }
 
-    // Crear un nuevo libro de trabajo y una hoja
+    // Create a new Excel workbook and worksheet
     console.log("Creando libro de Excel...");
     const workbook = XLSX.utils.book_new();
     
-    // Preparar los datos para el Excel (convertir fechas a formato adecuado)
+    // Prepare data for Excel export (convert dates to proper format)
     console.log("Preparando datos para exportación...");
     const datosExportar = resultado.data.map(estudiante => ({
       id_estudiante: estudiante.id_estudiante,
@@ -579,31 +614,32 @@ export const exportarEstudiantesExcel = async (ctx: Context) => {
       carrera: estudiante.carrera,
       semestre: estudiante.semestre,
       promedio: estudiante.promedio,
-      fecha_registro: new Date(estudiante.fecha_registro),
+      fecha_registro: new Date(estudiante.fecha_registro), // Ensure proper Date format
       estado: estudiante.estado
     }));
     
     console.log(`Datos preparados: ${datosExportar.length} filas`);
     
-    // Crear una hoja de trabajo a partir de los datos
+    // Create worksheet from the processed student data
     console.log("Creando hoja de trabajo...");
     const worksheet = XLSX.utils.json_to_sheet(datosExportar);
     console.log("Hoja creada con éxito");
     
-    // Agregar la hoja de trabajo al libro
+    // Add the worksheet to the workbook
     console.log("Agregando hoja al libro...");
     XLSX.utils.book_append_sheet(workbook, worksheet, "Estudiantes");
     
-    // Escribir el libro a un buffer
+    // Generate Excel file as buffer
     console.log("Generando buffer Excel...");
     const excelBuffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
     console.log(`Buffer generado: ${excelBuffer.length} bytes`);
     
-    // Configurar la respuesta para descargar el archivo
-    const fechaActual = new Date().toISOString().split('T')[0];
+    // Configure response headers for file download
+    const fechaActual = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
     const nombreArchivo = `estudiantes_${fechaActual}.xlsx`;
     console.log(`Configurando respuesta para descarga: ${nombreArchivo}`);
     
+    // Set response with proper headers for Excel file download
     response.status = 200;
     response.headers.set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     response.headers.set("Content-Disposition", `attachment; filename="${nombreArchivo}"`);

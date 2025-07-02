@@ -2,11 +2,17 @@ import { Context } from "../Dependencies/dependencias.ts";
 import { ensureDir } from "https://deno.land/std@0.220.1/fs/ensure_dir.ts";
 import { basename, join } from "https://deno.land/std@0.220.1/path/mod.ts";
 
+/**
+ * Middleware function to handle Excel file uploads
+ * Processes multipart form data and saves Excel files to the uploads directory
+ * @param ctx - Oak framework context object containing request and response
+ * @param next - Next middleware function in the chain
+ */
 export const uploadExcelMiddleware = async (ctx: Context, next: () => Promise<unknown>) => {
   const { request, response } = ctx;
 
   try {
-    // Comprobar si hay un cuerpo en la solicitud
+    // Check if the request contains a body
     if (!request.hasBody) {
       response.status = 400;
       response.body = {
@@ -16,25 +22,25 @@ export const uploadExcelMiddleware = async (ctx: Context, next: () => Promise<un
       return;
     }
 
-    // Crear directorio para almacenar archivos
+    // Create directory structure for storing uploaded Excel files
     const uploadDir = join(Deno.cwd(), "uploads", "excel");
     await ensureDir(uploadDir);
 
-    // Usar tipos 'any' para evitar errores de TypeScript
+    // Use 'any' type to avoid TypeScript errors with dynamic form data access
     const anyRequest = request as any;
 
-    // Obtener form-data directamente
+    // Attempt to get form data using various available methods
     let formData: any;
     try {
-      // Intentar acceder a formData() si existe
+      // Try to access formData() method if available
       if (typeof anyRequest.formData === 'function') {
         formData = await anyRequest.formData();
       }
-      // Alternativa: intentar acceder a multipart() si existe
+      // Alternative: try multipart() method if available
       else if (typeof anyRequest.multipart === 'function') {
         formData = await anyRequest.multipart();
       }
-      // Alternativa: acceder directamente a métodos de body
+      // Alternative: access body methods directly
       else {
         const bodyAny = anyRequest.body as any;
         if (typeof bodyAny.value?.read === 'function') {
@@ -48,6 +54,7 @@ export const uploadExcelMiddleware = async (ctx: Context, next: () => Promise<un
       console.error("Error accediendo al formulario:", e);
     }
 
+    // Return error if form data couldn't be processed
     if (!formData) {
       response.status = 400;
       response.body = {
@@ -57,14 +64,14 @@ export const uploadExcelMiddleware = async (ctx: Context, next: () => Promise<un
       return;
     }
 
-    // Encontrar el archivo (usando diferentes posibles estructuras)
+    // Locate the uploaded file using different possible data structures
     let file: any = null;
 
-    // Opción 1: formData tiene files como array
+    // Option 1: formData has files as an array
     if (Array.isArray(formData.files) && formData.files.length > 0) {
       file = formData.files[0];
     }
-    // Opción 2: formData tiene un método get
+    // Option 2: formData has a get method (standard FormData interface)
     else if (typeof formData.get === 'function') {
       try {
         file = formData.get('file');
@@ -73,6 +80,7 @@ export const uploadExcelMiddleware = async (ctx: Context, next: () => Promise<un
       }
     }
 
+    // Return error if no file was found
     if (!file) {
       response.status = 400;
       response.body = {
@@ -82,19 +90,20 @@ export const uploadExcelMiddleware = async (ctx: Context, next: () => Promise<un
       return;
     }
 
-    // Intentar obtener el nombre del archivo
+    // Initialize variables for file processing
     let fileName = '';
     let fileContent: Uint8Array | null = null;
 
+    // Handle different file object structures
     if (typeof file === 'string') {
-      // El archivo podría ser solo una ruta en algunos casos
+      // File might be just a path in some cases
       fileName = basename(file);
       fileContent = await Deno.readFile(file);
     } else {
-      // Intentar diferentes propiedades donde podría estar el nombre del archivo
+      // Try different properties where filename might be stored
       fileName = file.filename || file.originalName || file.name || 'archivo.xlsx';
 
-      // Intentar diferentes propiedades donde podrían estar los datos del archivo
+      // Try different properties where file data might be stored
       if (file.content) {
         fileContent = file.content;
       } else if (file.data) {
@@ -107,6 +116,7 @@ export const uploadExcelMiddleware = async (ctx: Context, next: () => Promise<un
       }
     }
 
+    // Return error if file content couldn't be read
     if (!fileContent) {
       response.status = 400;
       response.body = {
@@ -116,9 +126,8 @@ export const uploadExcelMiddleware = async (ctx: Context, next: () => Promise<un
       return;
     }
 
-    // Verificar que sea un archivo Excel
-    // En el archivo uploadExcel.ts
-    // Añade estos console.log
+    // Validate that the uploaded file is an Excel file
+    // Add debug logging for file type validation
     if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
       console.log("Error en middleware - Tipo de archivo rechazado:", fileName);
       console.log("Tipo MIME detectado:", file.filename ? "Con filename" : "Sin filename");
@@ -130,22 +139,25 @@ export const uploadExcelMiddleware = async (ctx: Context, next: () => Promise<un
       return;
     }
 
-    // Guardar el archivo en la ubicación definitiva
+    // Save the file to permanent storage location
     const timestamp = Date.now();
+    // Sanitize filename by removing special characters
     const safeFileName = basename(fileName).replace(/[^a-zA-Z0-9._-]/g, '_');
+    // Create unique filename with timestamp prefix
     const uniqueFileName = `${timestamp}_${safeFileName}`;
     const filePath = join(uploadDir, uniqueFileName);
 
+    // Write file content to disk
     await Deno.writeFile(filePath, fileContent);
 
-    // Guardar información en el estado
+    // Store file information in context state for next middleware
     ctx.state.uploadedFile = {
       name: fileName,
       path: filePath,
       size: fileContent.length,
     };
 
-    // Continuar al siguiente middleware
+    // Continue to the next middleware in the chain
     await next();
   } catch (error) {
     console.error("Error al procesar archivo Excel:", error);
