@@ -188,35 +188,6 @@ curl -X PUT "http://localhost:8000/estudiantes/1" \
 curl -X DELETE "http://localhost:8000/estudiantes/12"
 ```
 
-#### Bulk insert students
-```bash
-curl -X POST "http://localhost:8000/estudiantes/masivo" \
-  -H "Content-Type: application/json" \
-  -d '[
-    {
-      "nombre": "María",
-      "apellido": "González",
-      "email": "maria.gonzalez@ejemplo.com",
-      "telefono": "5559876543",
-      "carrera": "Ingeniería Industrial",
-      "semestre": 2,
-      "promedio": 9.0,
-      "fecha_registro": "2024-01-20",
-      "estado": 1
-    },
-    {
-      "nombre": "Pedro",
-      "apellido": "Martínez",
-      "email": "pedro.martinez@ejemplo.com",
-      "telefono": "5555555555",
-      "carrera": "Administración",
-      "semestre": 1,
-      "promedio": 8.7,
-      "fecha_registro": "2024-01-25",
-      "estado": 1
-    }
-  ]'
-```
 
 #### Export students to Excel
 ```bash
@@ -308,7 +279,7 @@ The API provides comprehensive error handling with detailed messages:
 
 ## Testing with REST Client
 
-If you have the REST Client extension installed in VS Code, you can create a `.http` file with the following requests:
+If you have the REST Client extension installed in VS Code, you can create a `.rest` file with the following requests:
 
 ```http
 ### List all students
